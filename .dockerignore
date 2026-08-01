@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+data/
+outputs/
+*.pt
+*.parquet
+.git/
+.DS_Store

@@ -1,0 +1,14 @@
+# Deliberately minimal.
+#
+# torch, numpy and torch-geometric are NOT listed here on purpose - they
+# arrive automatically as fairchem-core's own dependencies, at whatever
+# versions it actually needs. Pinning them by hand is what caused the
+# "conflicting dependencies" errors: hand-written pins fight fairchem's
+# real requirements.
+#
+# Requires Python 3.10 or newer (torch-geometric >= 2.7 dropped 3.9).
+
+polars
+ase
+fairchem-core
+matplotlib
