@@ -51,31 +51,33 @@ DEVICE="cuda" if torch.cuda.is_available() else "cpu"
 # ---------------------------------------------------------------------------
 # Physical constants
 # ---------------------------------------------------------------------------
-R_GAS = 8.314               # J/mol/K
+R_GAS = 8.3145               # J/mol/K
 EV_TO_J_PER_MOL = 96485.0   # 1 eV per molecule x Avogadro
 
 
 # ---------------------------------------------------------------------------
 # Atomistic model
 # ---------------------------------------------------------------------------
-SLAB_SIZE = (2, 2, 4)       # (nx, ny, layers)
+SLAB_SIZE = (4, 4, 4)       # (nx, ny, layers)
 VACUUM = 12.0               # Ang each side of the slab
 N_FIXED_LAYERS = 2
 ADSORBATE = "C2H6"
-ADS_HEIGHT = 2.2            # Ang above the surface plane
-FMAX = 0.05                 # eV/Ang relaxation convergence
+ADS_HEIGHT = 2.5            # Ang above the surface plane
+FMAX = 0.05 
+FMAX_NEB = 0.10               # eV/Ang relaxation convergence
 TASK_NAME = "oc20"
 
 
 # ---------------------------------------------------------------------------
 # Molecular dynamics
 # ---------------------------------------------------------------------------
-TEMPERATURE = 675.0         # K - representative of the SCADA range
-TIMESTEP_FS = 0.5           # set by the C-H stretch period (~11 fs)
+TEMPERATURE = 648.0         # K - representative of the SCADA range
+TIMESTEP_FS = 0.25           # set by the C-H stretch period (~11 fs)
 FRICTION_PER_FS = 0.01      # 1/gamma = 100 fs thermal coupling
-WARMUP_STEPS = 2_000
+WARMUP_STEPS = 1000
 RUN_STEPS = 5_000
 SAMPLE_EVERY = 20
+CH3_BOND_HEIGHT = 1.35 # a real Ni–C covalent bond, typically 1.8-1.9 Å. 
 
 
 # ---------------------------------------------------------------------------

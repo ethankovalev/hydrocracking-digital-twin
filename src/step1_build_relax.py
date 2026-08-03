@@ -67,7 +67,8 @@ def main():
     n_metal = len(slab)
 
     ads = molecule(config.ADSORBATE)
-    ads.rotate(90, "x")                     # lay the C-C bond flat
+    ads.rotate(90, "x")                    # lay the C-C bond flat
+    ads.translate([0.0, 0.0, -ads.positions[:, 2].min()])
 
     mo_x, mo_y = slab.positions[top_layer[0], :2]
     add_adsorbate(slab, ads, height=config.ADS_HEIGHT,
