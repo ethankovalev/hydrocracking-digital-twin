@@ -85,6 +85,17 @@ CPU-friendly. If you have no GPU, run the atomistic steps in Google Colab.
 | `could not broadcast input array from shape (N,) into shape (M,)` | One calculator reused across systems with different atom counts. Build a fresh one per system |
 | Physics loss reads exactly `0.00000` from epoch 0 | A `torch.clamp` upstream of the gradient. Clamp has zero gradient outside its bounds |
 
+## Running with Docker
+
+    docker build -t hydrocracking .
+    docker run --rm \
+      -v "$(pwd)/data:/app/data" \
+      -v "$(pwd)/outputs:/app/outputs" \
+      hydrocracking python run_all.py 0
+
+Place `reactor_data.parquet` and the UMA checkpoint in `data/` first.
+The checkpoint requires access from https://huggingface.co/facebook/UMA
+
 ## Known simplifications
 
 - The catalyst is modelled as a **metallic** Ni–Mo surface. Industrial
