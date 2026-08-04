@@ -105,11 +105,10 @@ The checkpoint requires access from https://huggingface.co/facebook/UMA
 - Step 4 assumes a **first-order** reaction. The Arrhenius constraint uses
   only the temperature derivative, so the unknown pre-exponential and space
   time cancel — but the reaction order itself is an assumption.
-- MD in step 2 runs for picoseconds; a 1 eV barrier takes milliseconds to
+- MD in step 2 runs for picoseconds; a 1 eV barrier takes microseconds to
   cross by chance. Bond breaking during MD indicates model failure, not
   chemistry. Barriers come from step 3.
-- `E_ads` should be sanity-checked against a known system (CO on Pt(111),
-  literature ≈ −1.5 to −1.8 eV) before the absolute numbers are trusted.
+- E_ads should be sanity-checked against a known system before the absolute numbers are trusted. The current ethane result is E_ads ≈ 0 eV (unbound) — plausibly because RPBE has no dispersion term and physisorption here is dispersion-dominated, but this hasn't been confirmed externally yet. A chemisorbed reference (e.g. CO on Pt(111), literature ≈ −1.37 ± 0.13 eV) tests the model's chemisorption behaviour but isn't the right comparison for a physisorbed system like this...
 
 ## References
 
