@@ -4,18 +4,26 @@ ground state, and compute the adsorption energy.
 
 Writes outputs/relaxed.traj, which steps 2 and 3 read.
 
-The OC20 task is not trained on isolated molecules, so asking it for free ethane gives an
-unreliable number. Instead we relax a second slab+ethane system with the
-molecule parked far above the surface. The model still sees a slab, and the
-slab energy cancels in E_together - E_far.
+The OC20 task is not trained on isolated molecules, so asking it for free
+ethane gives an unreliable number. Instead we relax a second slab+ethane
+system with the molecule parked far above the surface. The model still sees
+a slab, and the slab energy cancels in E_together - E_far.
+
+Everything is run twice: once with plain UMA, once with Grimme D3 added to
+the relaxation. OC20 is RPBE, which has no dispersion term, and alkane-metal
+binding is almost entirely dispersion - so the uncorrected run is expected
+to give roughly zero. The pair of numbers is the result, not either alone.
 """
 
 import sys
 from pathlib import Path
+
 from ase.build import add_adsorbate, fcc111, molecule
+from ase.calculators.mixing import SumCalculator
 from ase.constraints import FixAtoms
 from ase.optimize import BFGS
 
+from torch_dftd.torch_dftd3_calculator import TorchDFTD3Calculator
 from fairchem.core import FAIRChemCalculator
 from fairchem.core.units.mlip_unit import load_predict_unit
 
@@ -25,15 +33,27 @@ import config
 SEPARATION = 8.0        # height used for the non-interacting reference
 
 
-def new_calculator():
+def new_calculator(with_d3=False):
     """A fresh calculator for each system.
 
     One calculator object cannot be reused across systems with different
     atom counts - it caches a results buffer sized to the first structure
     it sees and then raises a numpy broadcast error.
+
+    with_d3 adds Grimme D3 as a second additive calculator, so dispersion
+    contributes forces during relaxation and the molecule can settle at a
+    realistic height. Evaluating D3 only as a single point on a UMA-relaxed
+    geometry would miss most of the well, since D3 goes as R^-6 and the
+    uncorrected molecule sits about 0.6 A too far out.
+
+    RPBE parameters, because that is the functional OC20 was trained on.
     """
     unit = load_predict_unit(path=str(config.MODEL_PATH), device=config.DEVICE)
-    return FAIRChemCalculator(unit, task_name=config.TASK_NAME)
+    uma = FAIRChemCalculator(unit, task_name=config.TASK_NAME)
+    if not with_d3:
+        return uma
+    d3 = TorchDFTD3Calculator(damping="zero", xc="rpbe", device=config.DEVICE)
+    return SumCalculator([uma, d3])
 
 
 def make_clean_slab():
@@ -119,58 +139,70 @@ def gap(atoms, ads_indices):
                for a in ads_indices)
 
 
-def main():
-    config.check_checkpoint()
+def run(with_d3, traj=None):
+    """Relax the adsorbed system and its far reference.
 
-    # 1. bare surface
-    clean, _ = make_clean_slab()
-    clean.calc = new_calculator()
-    E_surface = relax(clean, "bare surface")
+    Returns (E, contact, cc): the adsorption energy, the closest
+    adsorbate-metal distance after relaxation, and the C-C bond length.
+    """
+    label = "with D3" if with_d3 else "uncorrected"
+    print(f"\n--- {label} ---")
 
-    # 2. ethane adsorbed
     slab, ads = build(config.ADS_HEIGHT)
-    slab.calc = new_calculator()
-    print(f"closest contact at start = {gap(slab, ads):.2f} Å  (want > 2.0)")
-    E_together = relax(slab, "surface + ethane", traj=str(config.RELAXED_TRAJ))
+    slab.calc = new_calculator(with_d3)
+    print(f"closest contact at start   = {gap(slab, ads):.2f} A  (want > 2.0)")
+    E_together = relax(slab, f"surface + ethane ({label})", traj=traj)
 
-    # 3. reference: same system, ethane parked out of reach.
     far, far_ads = build(SEPARATION)
-    far.calc = new_calculator()
+    far.calc = new_calculator(with_d3)
     far_start = gap(far, far_ads)
-    print(f"reference contact at start = {far_start:.2f} Å  "
+    print(f"reference contact at start = {far_start:.2f} A  "
           f"(should be about {SEPARATION:.1f})")
     if far_start < SEPARATION - 1.0:
         raise RuntimeError(
-            f"reference built at only {far_start:.2f} Å - wrong height was "
+            f"reference built at only {far_start:.2f} A - wrong height was "
             "passed to build(), so this is not a valid reference")
 
-    E_far = relax(far, "far reference")
+    E_far = relax(far, f"far reference ({label})")
     if gap(far, far_ads) < SEPARATION - 1.0:
         raise RuntimeError("the reference ethane drifted onto the slab")
-
-    E_ads = E_together - E_far
 
     carbons = [i for i in ads if slab[i].symbol == "C"]
     cc = slab.get_distance(carbons[0], carbons[1], mic=True)
 
-    print(f"\nbare surface          = {E_surface:9.3f} eV")
-    print(f"surface + ethane      = {E_together:9.3f} eV")
-    print(f"slab + distant ethane = {E_far:9.3f} eV")
-    print(f"implied E_gas         = {E_far - E_surface:9.3f} eV")
-    print(f"C-C after relaxation  = {cc:.2f} Å   (expect ~1.53)")
-    print(f"closest contact       = {gap(slab, ads):.2f} Å")
-    print(f"\nE_ads = {E_ads:.4f} eV")
+    print(f"surface + ethane           = {E_together:9.3f} eV")
+    print(f"slab + distant ethane      = {E_far:9.3f} eV")
 
-    if cc > 2.0:
-        print("WARNING: the C-C bond broke during relaxation")
-    if E_ads < -0.5:
-        print("strongly bound (chemisorbed)")
-    elif E_ads < 0:
-        print("weakly bound (physisorbed)")
+    return E_together - E_far, gap(slab, ads), cc
+
+
+def main():
+    config.check_checkpoint()
+
+    # Plain UMA. This is the trajectory steps 2 and 3 read.
+    E_ads, contact_ads, cc_ads = run(False, traj=str(config.RELAXED_TRAJ))
+
+    # Dispersion inside the relaxation loop, so the molecule can move in.
+    E_d3, contact_d3, cc_d3 = run(True)
+
+    print("\n" + "=" * 52)
+    print(f"{'':<22}{'uncorrected':>13}{'with D3':>13}")
+    print(f"{'E_ads          [eV]':<22}{E_ads:>13.4f}{E_d3:>13.4f}")
+    print(f"{'closest contact [A]':<22}{contact_ads:>13.2f}{contact_d3:>13.2f}")
+    print(f"{'C-C bond        [A]':<22}{cc_ads:>13.2f}{cc_d3:>13.2f}")
+    print("=" * 52)
+    print("expect C-C ~1.53 A; dispersion should pull contact from ~4.1 to ~3.5 A")
+
+    if cc_d3 > 2.0:
+        print("\nWARNING: the C-C bond broke during relaxation")
+    if E_d3 < -0.5:
+        print("\nstrongly bound (chemisorbed)")
+    elif E_d3 < 0:
+        print("\nweakly bound (physisorbed)")
     else:
-        print("not bound - ethane prefers the gas phase")
+        print("\nnot bound - ethane prefers the gas phase")
 
-    return E_ads
+    return E_d3
 
 
 if __name__ == "__main__":
