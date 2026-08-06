@@ -109,6 +109,7 @@ The checkpoint requires access from https://huggingface.co/facebook/UMA
   cross by chance. Bond breaking during MD indicates model failure, not
   chemistry. Barriers come from step 3.
 - E_ads should be sanity-checked against a known system before the absolute numbers are trusted. The current ethane result is E_ads = 0.0032 eV (unbound) — plausibly because RPBE has no dispersion term and physisorption here is dispersion-dominated, but this hasn't been confirmed externally yet. A chemisorbed reference (e.g. CO on Pt(111), literature ≈ −1.37 ± 0.13 eV) tests the model's chemisorption behaviour but isn't the right comparison for a physisorbed system like this...
+- E_ads is below UMA's own benchmarked accuracy against DFT (~0.009 eV MAE), so the result should be read as "not resolvable from zero," not as a confirmed weak-binding measurement.
 
 ## References
 
