@@ -57,7 +57,7 @@ well depth compared to letting the geometry relax under the added forces.
 | closest contact [Å] | 4.10 | 2.78 |
 | C-C bond [Å] | 1.53 | 1.53 |
 
-Adding D3 pulled the molecule in by 1.3 Å and produced a binding energy
+Adding D3 pulled the molecule in by ~1.3 Å and produced a binding energy
 inside the experimental range for ethane on Ni(111) (-0.25 to -0.35 eV,
 TPD).
 
