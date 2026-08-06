@@ -14,6 +14,10 @@ we would be measuring the thermostat rather than the chemistry.
 
 The cost of that choice is that the molecule now relies on physical contact
 with the slab to reach 675 K, so its temperature is monitored separately.
+
+The calculator must include D3, matching step 1. Plain UMA/OC20 gives no
+binding well for a physisorbed alkane, so without dispersion the molecule
+leaves regardless of what the thermostat does and the run tests nothing.
 """
 
 import sys
@@ -25,11 +29,10 @@ from ase.io import Trajectory, read
 from ase.md.langevin import Langevin
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 
-from fairchem.core import FAIRChemCalculator
-from fairchem.core.units.mlip_unit import load_predict_unit
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent))
 import config
+from step1_build_relax import new_calculator
 
 
 def main():
@@ -38,8 +41,7 @@ def main():
         raise FileNotFoundError("Run step 1 first - outputs/relaxed.traj is missing.")
 
     atoms = read(str(config.RELAXED_TRAJ))      # last frame = the relaxed one
-    unit = load_predict_unit(path=str(config.MODEL_PATH), device=config.DEVICE)
-    atoms.calc = FAIRChemCalculator(unit, task_name=config.TASK_NAME)
+    atoms.calc = new_calculator(with_d3=True)
 
     # Step 1 tagged them: 2 = adsorbate, 0/1 = metal.
     tags = atoms.get_tags()
@@ -61,6 +63,13 @@ def main():
         d0 = atoms.get_distance(h, carbons[0])
         d1 = atoms.get_distance(h, carbons[1])
         ch_pairs.append((carbons[0], h) if d0 < d1 else (carbons[1], h))
+
+    # Confirm we are reading the D3 geometry and not a stale uncorrected one.
+    surface_z = max(atoms.positions[i, 2] for i in metal)
+    lowest_c = min(atoms.positions[c, 2] for c in carbons)
+    print(f"starting C-surface gap = {lowest_c - surface_z:.2f} A")
+    print("(expect ~3.3 A from the D3 run; ~4.5 A means you are reading the")
+    print(" uncorrected trajectory and there is no well to test)\n")
 
     # Count frozen atoms for the temperature-fluctuation estimate.
     n_frozen = 0
@@ -97,9 +106,9 @@ def main():
         # Plain z difference, NOT a minimum-image distance. The cell is
         # periodic in z, so mic would wrap a departing molecule back towards
         # the underside of the slab and report it as still adsorbed.
-        surface_z = max(atoms.positions[i, 2] for i in metal)
-        lowest_c = min(atoms.positions[c, 2] for c in carbons)
-        gaps.append(lowest_c - surface_z)
+        z_surf = max(atoms.positions[i, 2] for i in metal)
+        z_c = min(atoms.positions[c, 2] for c in carbons)
+        gaps.append(z_c - z_surf)
 
     # Thermostat the metal only.
     friction = np.zeros((len(atoms), 1))
@@ -161,19 +170,19 @@ def main():
         print("   blaming the chemistry - too large a step breaks C-H first.")
 
     if cc.max() > 2.0:
-        print("-> C-C bond broke. Suspicious on a 5 ps timescale: a 1 eV barrier")
+        print("-> C-C bond broke. Suspicious on this timescale: a 1 eV barrier")
         print("   at 675 K takes ~3 us to cross by chance, a million times longer")
         print("   than this run. More likely the potential than real chemistry.")
 
     # Judge desorption on the last quarter, not on one stray frame.
     tail = gap[3 * len(gap) // 4:]
     if tail.mean() > 6.0:
-        print("-> ethane desorbed. This is the EXPECTED result: with E_ads ~ 0.06 eV")
-        print("   and kB*T = 0.058 eV at 675 K, the residence time is under 1 ps.")
+        print("-> ethane desorbed. This is now the SURPRISING result: with the")
+        print("   D3-corrected E_ads of -0.31 eV and kB*T = 0.058 eV at 675 K,")
+        print("   the residence time should be tens of ps, longer than this run.")
     elif cc.max() <= 2.0 and ch.max() <= 1.6:
-        print("-> ethane stayed put, which is the surprising outcome. A 0.06 eV well")
-        print("   should not hold a molecule at 675 K - either E_ads is")
-        print("   underestimated or something is still damping the escape.")
+        print("-> ethane stayed put, which is what -0.31 eV predicts at 675 K.")
+        print("   The 0 K structure survives at reactor temperature.")
 
 
 if __name__ == "__main__":
