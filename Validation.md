@@ -1,9 +1,6 @@
 # Validation Report: ethane adsorption on Mo-doped Ni(111)
 
-*A record of how the adsorption energy in this pipeline was computed,
-what was cross-checked, and how far the result can be trusted. Written to
-be reusable: the same six-step protocol applies to any foundation-MLIP
-result, with this system as the worked example.*
+A record of how this result was computed, cross-checked, and its limits. Structured so the same checks could be tried on a different system.
 
 ## System
 
