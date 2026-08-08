@@ -93,12 +93,7 @@ than physical binding.
 
 ## 5. Remaining limitations
 
-- **Contact distance not yet decomposed.** The 2.78 Å figure is the
-  closest *any* adsorbate atom to *any* metal atom. If that atom is a
-  hydrogen pointing down, the carbon height is a normal 3.3-3.6 Å; if the
-  carbons themselves sit that close, it is evidence of D3 overbinding.
-  Not yet resolved: measuring carbon height above the surface plane
-  directly would settle it.
+- **Contact distance decomposed.** The 2.78 Å figure reported above is the closest any adsorbate atom sits to any metal atom. Measuring the carbons specifically gives 3.53 Å above the surface plane, squarely in the normal physisorption range (3.2–3.6 Å) — the 2.78 Å figure reflects a hydrogen pointing toward the surface, not the carbons themselves sitting unusually close. This is evidence against significant D3 overbinding in this case, though the general caveat (D3 is known to overbind on metals in some systems) still applies.
 - **Single site and orientation.** Only ontop-Mo with one molecular
   orientation was relaxed. This is not a minimum over configuration
   space; a proper treatment would sample multiple sites and orientations
