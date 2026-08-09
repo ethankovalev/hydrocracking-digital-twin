@@ -180,10 +180,10 @@ def main():
     config.check_checkpoint()
 
     # Plain UMA. This is the trajectory steps 2 and 3 read.
-    E_ads, contact_ads, cc_ads = run(False, traj=str(config.RELAXED_TRAJ))
+    E_ads, contact_ads, cc_ads = run(False)
 
     # Dispersion inside the relaxation loop, so the molecule can move in.
-    E_d3, contact_d3, cc_d3 = run(True)
+    E_d3, contact_d3, cc_d3 = run(True, traj=str(config.RELAXED_TRAJ))
 
     print("\n" + "=" * 52)
     print(f"{'':<22}{'uncorrected':>13}{'with D3':>13}")
